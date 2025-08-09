@@ -91,6 +91,8 @@ jobs:
             git commit -m "chore(testdata): update generated JSON [skip ci]"
             BRANCH_NAME="ci/testdata-update-$(date +%Y%m%d-%H%M%S)"
             git checkout -b "$BRANCH_NAME"
+            # Clear any auth extraheaders that can conflict with PAT-based push
+            git config --local --unset-all http.https://github.com/.extraheader || true
             git push -u "https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/${{ secrets.TARGET_REPO }}.git" "$BRANCH_NAME"
             echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           fi

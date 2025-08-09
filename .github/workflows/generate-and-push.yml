@@ -81,6 +81,9 @@ jobs:
 
       - name: Commit and push if changed
         working-directory: out-repo
+        env:
+          PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          TARGET_REPO: ${{ secrets.TARGET_REPO }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -93,7 +96,7 @@ jobs:
             git checkout -b "$BRANCH_NAME"
             # Clear any auth extraheaders that can conflict with PAT-based push
             git config --local --unset-all http.https://github.com/.extraheader || true
-            git push -u "https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/${{ secrets.TARGET_REPO }}.git" "$BRANCH_NAME"
+            git push -u "https://x-access-token:${PUSH_TOKEN}@github.com/${TARGET_REPO}.git" "$BRANCH_NAME"
             echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           fi
 

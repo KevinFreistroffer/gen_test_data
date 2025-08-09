@@ -73,5 +73,3 @@ See `src/gen_test_data/config.py` for:
 - Uses `polyfactory` + `faker` to synthesize realistic values
 - Handles nested models and collections
 - Skips abstract or generic models
-
-test test test test

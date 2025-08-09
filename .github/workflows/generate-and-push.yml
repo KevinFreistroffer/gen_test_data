@@ -43,6 +43,33 @@ jobs:
           path: out-repo
           # Intentionally omitting ref to use the default branch if not specified
 
+      - name: Verify token access to target repo
+        env:
+          PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          TARGET_REPO: ${{ secrets.TARGET_REPO }}
+        run: |
+          set -e
+          echo "Checking token access for repo ${TARGET_REPO}"
+          status=$(curl -sS -o resp.json -w "%{http_code}" \
+            -H "Authorization: token ${PUSH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${TARGET_REPO}")
+          if [ "$status" != "200" ]; then
+            echo "Token cannot access repo (HTTP $status)."
+            cat resp.json || true
+            echo "Ensure PAT has repo write access and SSO enabled if org-enforced."
+            exit 1
+          fi
+          python - <<'PY'
+import json
+with open('resp.json','r',encoding='utf-8') as f:
+    data=json.load(f)
+perms=data.get('permissions',{})
+print('Repo permissions for token user:', perms)
+if not perms.get('push', False):
+    raise SystemExit('Token does not have push permission to the repository.')
+PY
+
       - name: Copy outputs into target repo
         run: |
           if [ -n "${OUTPUT_SUBDIR}" ]; then
@@ -62,5 +89,40 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "chore(testdata): update generated JSON [skip ci]"
-            git push "https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/${{ secrets.TARGET_REPO }}.git" HEAD:${TARGET_BRANCH:-main}
+            BRANCH_NAME="ci/testdata-update-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b "$BRANCH_NAME"
+            git push -u "https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/${{ secrets.TARGET_REPO }}.git" "$BRANCH_NAME"
+            echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          fi
+
+      - name: Open pull request in target repo
+        if: env.BRANCH_NAME != ''
+        env:
+          PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          TARGET_REPO: ${{ secrets.TARGET_REPO }}
+          TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
+          BRANCH_NAME: ${{ env.BRANCH_NAME }}
+        run: |
+          set -e
+          : "${TARGET_BRANCH:=main}"
+          title="chore(testdata): update generated JSON"
+          body="Automated update of generated test data."
+          create_status=$(curl -sS -o pr_resp.json -w "%{http_code}" -X POST \
+            -H "Authorization: token ${PUSH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -d @- "https://api.github.com/repos/${TARGET_REPO}/pulls" <<JSON
+{ "title": "$title", "head": "${BRANCH_NAME}", "base": "${TARGET_BRANCH}", "body": "$body" }
+JSON
+          )
+          if [ "$create_status" = "201" ]; then
+            echo "Pull request created:"
+            cat pr_resp.json | jq -r '.html_url'
+          else
+            echo "PR create returned HTTP $create_status. Response:"
+            cat pr_resp.json || true
+            # If a PR already exists for this branch, try to find it and print the URL
+            curl -sS \
+              -H "Authorization: token ${PUSH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${TARGET_REPO}/pulls?head=${BRANCH_NAME}&state=open" | jq -r '.[0].html_url // empty'
           fi

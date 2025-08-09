@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -60,5 +62,5 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "chore(testdata): update generated JSON [skip ci]"
-            git push origin HEAD:${TARGET_BRANCH:-main}
+            git push "https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/${{ secrets.TARGET_REPO }}.git" HEAD:${TARGET_BRANCH:-main}
           fi

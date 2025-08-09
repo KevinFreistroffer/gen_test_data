@@ -1,0 +1,64 @@
+name: Generate and Push Test Data
+
+on:
+  push:
+    branches: [ "**" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ secrets.TARGET_BRANCH }}
+      OUTPUT_SUBDIR: ${{ secrets.OUTPUT_SUBDIR }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate test data
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m gen_test_data
+
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.TARGET_REPO }}
+          token: ${{ secrets.PUSH_TOKEN }}
+          path: out-repo
+          # Intentionally omitting ref to use the default branch if not specified
+
+      - name: Copy outputs into target repo
+        run: |
+          if [ -n "${OUTPUT_SUBDIR}" ]; then
+            mkdir -p "out-repo/${OUTPUT_SUBDIR}"
+            rsync -av --delete output/ "out-repo/${OUTPUT_SUBDIR}/"
+          else
+            rsync -av --delete output/ out-repo/
+          fi
+
+      - name: Commit and push if changed
+        working-directory: out-repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore(testdata): update generated JSON [skip ci]"
+            git push origin HEAD:${TARGET_BRANCH:-main}
+          fi

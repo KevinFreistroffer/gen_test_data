@@ -1,0 +1,5 @@
+pydantic>=2.5
+polyfactory>=2.16
+faker>=25.0
+python-dotenv>=1.0
+

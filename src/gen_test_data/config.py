@@ -20,7 +20,7 @@ class Settings:
     OUTPUT_DIR: str = "output"
 
     # Optional subdirectory inside the target repo where files should be copied by CI
-    OUTPUT_SUBDIR_IN_TARGET_REPO: str | None = None  # e.g., "testdata"
+    OUTPUT_SUBDIR_IN_TARGET_REPO: str | None ="dev"
 
     # Map fully-qualified model name -> filename (without env prefix or extension)
     FILENAME_OVERRIDES: Dict[str, str] = field(default_factory=dict)

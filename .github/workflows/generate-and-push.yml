@@ -107,13 +107,12 @@ jobs:
           : "${TARGET_BRANCH:=main}"
           title="chore(testdata): update generated JSON"
           body="Automated update of generated test data."
+          jq -n --arg title "$title" --arg head "$BRANCH_NAME" --arg base "$TARGET_BRANCH" --arg body "$body" \
+            '{title:$title, head:$head, base:$base, body:$body}' > pr_payload.json
           create_status=$(curl -sS -o pr_resp.json -w "%{http_code}" -X POST \
             -H "Authorization: token ${PUSH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            -d @- "https://api.github.com/repos/${TARGET_REPO}/pulls" <<JSON
-{ "title": "$title", "head": "${BRANCH_NAME}", "base": "${TARGET_BRANCH}", "body": "$body" }
-JSON
-          )
+            -d @pr_payload.json "https://api.github.com/repos/${TARGET_REPO}/pulls")
           if [ "$create_status" = "201" ]; then
             echo "Pull request created:"
             cat pr_resp.json | jq -r '.html_url'

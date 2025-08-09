@@ -61,14 +61,14 @@ jobs:
             exit 1
           fi
           python - <<'PY'
-import json
-with open('resp.json','r',encoding='utf-8') as f:
-    data=json.load(f)
-perms=data.get('permissions',{})
-print('Repo permissions for token user:', perms)
-if not perms.get('push', False):
-    raise SystemExit('Token does not have push permission to the repository.')
-PY
+          import json
+          with open('resp.json','r',encoding='utf-8') as f:
+              data=json.load(f)
+          perms=data.get('permissions',{})
+          print('Repo permissions for token user:', perms)
+          if not perms.get('push', False):
+              raise SystemExit('Token does not have push permission to the repository.')
+          PY
 
       - name: Copy outputs into target repo
         run: |
